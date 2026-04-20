@@ -2,67 +2,81 @@ import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import EntryForm from "./EntryForm";
 
-// Notice we keep 'async' here
 export default async function WritePage({
   params,
 }: {
   params: Promise<{ token: string }>;
 }) {
-  // STEP 1: Unwrap the params promise
   const { token } = await params;
 
-  // 1. Fetch the token and the question prompt
+  // 1. Fetch current token/question
   const { data: tokenData, error: tokenError } = await supabase
     .from("access_tokens")
-    .select(
-      `
-      token,
-      is_used,
-      expires_at,
-      question_id,
-      questions ( prompt )
-    `,
-    )
+    .select("token, is_used, expires_at, question_id, questions(prompt)")
     .eq("token", token)
     .single();
 
   if (tokenError || !tokenData) return <div>Link Invalid</div>;
 
-  // 2. Fetch the story separately using the question_id
-  let existingStory = "";
-  if (tokenData.is_used) {
-    const { data: storyData } = await supabase
-      .from("stories")
-      .select("content")
-      .eq("question_id", tokenData.question_id)
-      .single();
+  // 2. Fetch ALL answered stories for the history menu
+  // We'll order them by date so the most recent is at the top
+  const { data: history } = await supabase
+    .from("stories")
+    .select(
+      `
+        content,
+        created_at,
+        questions ( prompt )
+      `,
+    )
+    .order("created_at", { ascending: false });
 
-    if (storyData) {
-      existingStory = storyData.content;
-    }
-  }
+  const prompt = (tokenData.questions as any)?.prompt;
 
-  // If token is missing or expired, we still show the error
-  if (tokenError || !tokenData || new Date(tokenData.expires_at) < new Date()) {
-    // Note: We only show error if it's actually missing or expired.
-    // If it's just 'is_used', we proceed to show the read-only view.
-    if (!tokenData?.is_used) {
-      return <div>Link Invalid or Expired</div>;
-    }
-  }
-
-  // Handle the TypeScript typing for the joined question data
-  const prompt = (tokenData.questions as any)?.prompt || "Tell us a story!";
+  // Find if THIS specific question has an answer yet
+  const existingStory =
+    history?.find((s: any) => s.questions.prompt === prompt)?.content || "";
 
   return (
-    <main className="max-w-2xl mx-auto min-h-screen p-6 flex flex-col justify-center bg-white text-black">
-      <h1 className="text-3xl font-serif mb-8 leading-tight">{prompt}</h1>
+    <main className="max-w-2xl mx-auto min-h-screen p-6 bg-white text-black">
+      <div className="mb-12">
+        <h1 className="text-3xl font-serif mb-8 leading-tight">{prompt}</h1>
+        <EntryForm
+          token={token}
+          initialContent={existingStory}
+          readOnly={tokenData.is_used}
+        />
+      </div>
 
-      <EntryForm
-        token={token}
-        readOnly={tokenData.is_used}
-        initialContent={existingStory}
-      />
+      {/* History Section */}
+      {history?.map((item: any, i: number) => {
+        // Convert UTC string to a Date object
+        const date = new Date(item.created_at);
+
+        // Format to PST (America/Los_Angeles)
+        const formattedDate = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }).format(date);
+
+        return (
+          <div key={i} className="group">
+            <div className="flex justify-between items-baseline mb-2">
+              <h3 className="text-lg font-medium text-gray-900 leading-tight">
+                {item.questions.prompt}
+              </h3>
+              <span className="text-sm font-medium text-gray-400 whitespace-nowrap ml-4 uppercase tracking-tighter">
+                {formattedDate}
+              </span>
+            </div>
+            <p className="text-gray-600 leading-relaxed italic border-l-2 border-gray-100 pl-4 py-1">
+              "{item.content}"
+            </p>
+          </div>
+        );
+      })}
     </main>
   );
 }
