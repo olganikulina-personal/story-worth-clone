@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
+import { Resend } from 'resend';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
     const { token, content } = await request.json();
@@ -27,6 +29,24 @@ export async function POST(request: Request) {
         .from('access_tokens')
         .update({ is_used: true })
         .eq('token', token);
+
+    const familyEmails = process.env.FAMILY_EMAILS?.split(',') || [];
+
+    await resend.emails.send({
+        from: 'StoryPulse <onboarding@resend.dev>',
+        to: familyEmails,
+        subject: "✨ Babushka just shared a new story!",
+        html: `
+            <p>A new memory has been added to the family book:</p>
+            <blockquote style="padding: 10px; border-left: 4px solid #ccc;">
+              ${content}
+            </blockquote>
+            <p>You can see it along with all past stories here: 
+               <a href="${process.env.NEXT_PUBLIC_BASE_URL}">View Family Book</a>
+            </p>
+            <p>Use passcode: <strong>${process.env.FAMILY_PASSCODE}</strong> to unlock.</p>
+          `
+    });
 
     return NextResponse.json({ success: true });
 }

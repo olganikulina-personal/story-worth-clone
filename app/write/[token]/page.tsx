@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
-import EntryForm from "./EntryForm";
+import EntryForm from "@/components/EntryForm";
 
 export default async function WritePage({
   params,
@@ -12,71 +12,48 @@ export default async function WritePage({
   // 1. Fetch current token/question
   const { data: tokenData, error: tokenError } = await supabase
     .from("access_tokens")
-    .select("token, is_used, expires_at, question_id, questions(prompt)")
+    .select("token, is_used, question_id, questions(prompt)")
     .eq("token", token)
     .single();
 
-  if (tokenError || !tokenData) return <div>Link Invalid</div>;
+  if (tokenError || !tokenData) return <div className="p-10">Link Invalid</div>;
 
-  // 2. Fetch ALL answered stories for the history menu
-  // We'll order them by date so the most recent is at the top
-  const { data: history } = await supabase
-    .from("stories")
-    .select(
-      `
-        content,
-        created_at,
-        questions ( prompt )
-      `,
-    )
-    .order("created_at", { ascending: false });
+  // 2. Fetch only THIS specific story if it's already been answered
+  let existingStory = "";
+  if (tokenData.is_used) {
+    const { data: storyData } = await supabase
+      .from("stories")
+      .select("content")
+      .eq("question_id", tokenData.question_id)
+      .single();
+
+    if (storyData) existingStory = storyData.content;
+  }
 
   const prompt = (tokenData.questions as any)?.prompt;
 
-  // Find if THIS specific question has an answer yet
-  const existingStory =
-    history?.find((s: any) => s.questions.prompt === prompt)?.content || "";
-
   return (
-    <main className="max-w-2xl mx-auto min-h-screen p-6 bg-white text-black">
-      <div className="mb-12">
-        <h1 className="text-3xl font-serif mb-8 leading-tight">{prompt}</h1>
+    /* min-h-screen and flex-col are key here */
+    <main className="max-w-2xl mx-auto h-screen flex flex-col p-6 bg-white text-black font-sans">
+      <nav className="mb-8">
+        <a
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-zinc-400"
+        >
+          ← View All Stories
+        </a>
+      </nav>
+
+      <h1 className="text-3xl font-serif mb-6 leading-tight">{prompt}</h1>
+
+      {/* Wrap the form in a flex-1 container to push it to fill space */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         <EntryForm
           token={token}
           initialContent={existingStory}
           readOnly={tokenData.is_used}
         />
       </div>
-
-      {/* History Section */}
-      {history?.map((item: any, i: number) => {
-        // Convert UTC string to a Date object
-        const date = new Date(item.created_at);
-
-        // Format to PST (America/Los_Angeles)
-        const formattedDate = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }).format(date);
-
-        return (
-          <div key={i} className="group">
-            <div className="flex justify-between items-baseline mb-2">
-              <h3 className="text-lg font-medium text-gray-900 leading-tight">
-                {item.questions.prompt}
-              </h3>
-              <span className="text-sm font-medium text-gray-400 whitespace-nowrap ml-4 uppercase tracking-tighter">
-                {formattedDate}
-              </span>
-            </div>
-            <p className="text-gray-600 leading-relaxed italic border-l-2 border-gray-100 pl-4 py-1">
-              "{item.content}"
-            </p>
-          </div>
-        );
-      })}
     </main>
   );
 }

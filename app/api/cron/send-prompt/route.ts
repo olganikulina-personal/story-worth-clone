@@ -33,12 +33,13 @@ export async function GET(request: Request) {
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
         const magicLink = `${baseUrl}/write/${tokenData.token}`;
+        const familyEmails = process.env.FAMILY_EMAILS?.split(',') || [];
 
         // 3. Send the email to YOU
         await resend.emails.send({
             from: 'StoryPulse <onboarding@resend.dev>', // Resend's default test sender
-            to: 'olganikulina88@gmail.com', // YOUR email address
-            subject: "Weekly Prompt for Grandma: " + question.prompt,
+            to: familyEmails, // YOUR email address
+            subject: "Weekly Prompt for Babushka: " + question.prompt,
             html: `
         <p>It's time for a new story!</p>
         <p><strong>Prompt:</strong> ${question.prompt}</p>
