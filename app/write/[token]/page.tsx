@@ -20,6 +20,9 @@ export async function generateMetadata({
   return {
     title: `Babushka's Family Archive: ${prompt}`,
     description: "Share a memory with Babushka's family.",
+    icons: {
+      icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>",
+    },
     openGraph: {
       title: `Babushka, ${prompt.toLowerCase().replace("?", "")}?`,
       description: "Click here to add your story to the family book.",

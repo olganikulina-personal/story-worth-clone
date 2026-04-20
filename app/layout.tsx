@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Babushka's Family Archive",
   description: "A collection of memories from Babushka",
+  icons: {
+    icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>",
+  },
   openGraph: {
     title: "Babushka's Family Archive",
     description: "A collection of memories from Babushka.",
@@ -22,7 +25,7 @@ export const metadata: Metadata = {
     siteName: "Babushka's Family Archive",
     images: [
       {
-        url: "https://story-worth-clone.vercel.app//grandma.jpeg",
+        url: "https://story-worth-clone.vercel.app/grandma.jpeg",
         width: 1200,
         height: 632,
         alt: "Babushka and babies",
