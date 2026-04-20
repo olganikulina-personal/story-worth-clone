@@ -38,9 +38,9 @@ export async function GET(request: Request) {
         await resend.emails.send({
             from: 'StoryPulse <onboarding@resend.dev>', // Resend's default test sender
             to: 'olganikulina88@gmail.com', // YOUR email address
-            subject: "Weekly Story Link for Grandma",
+            subject: "Weekly Prompt for Grandma: " + question.prompt,
             html: `
-        <p>It's time for a new story! Copy and text the link below to Grandma:</p>
+        <p>It's time for a new story!</p>
         <p><strong>Prompt:</strong> ${question.prompt}</p>
         <p><a href="${magicLink}">${magicLink}</a></p>
       `
