@@ -1,6 +1,32 @@
 import { supabase } from "@/lib/supabase";
-import { notFound } from "next/navigation";
 import EntryForm from "@/components/EntryForm";
+import { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+
+  const { data } = await supabase
+    .from("access_tokens")
+    .select("questions(prompt)")
+    .eq("token", token)
+    .single();
+
+  const prompt = (data?.questions as any)?.prompt || "A new story prompt";
+
+  return {
+    title: `Babushka's Family Archive: ${prompt}`,
+    description: "Share a memory with Babushka's family.",
+    openGraph: {
+      title: `Babushka, ${prompt.toLowerCase().replace("?", "")}?`,
+      description: "Click here to add your story to the family book.",
+      type: "website",
+    },
+  };
+}
 
 export default async function WritePage({
   params,
