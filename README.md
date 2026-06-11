@@ -58,7 +58,7 @@ Go to **Project Settings → API**:
 
 The Resend free plan only allows sending to the **single email address you signed up with**. This means `FAMILY_EMAILS` must be set to just your own email — you can't send directly to other family members without upgrading or verifying a domain.
 
-A simple workaround: receive the weekly prompt email yourself, copy the magic link, and forward it to your family member over text or WhatsApp. This is how this app is used in practice — the family member gets the link via text, not email, and replies by text when they're done writing. You can then paste their story into the text box yourself if they're not comfortable with the web interface.
+A simple workaround: receive the weekly prompt email yourself, copy the magic link, and forward it to your family member over text or WhatsApp.
 
 If you verify a custom domain with Resend, you can send to any address and skip the manual forwarding step.
 
