@@ -68,7 +68,7 @@ export default async function WritePage({
     if (storyData) existingStory = storyData.content;
   }
 
-  const prompt = (tokenData.questions as any)?.prompt;
+  const prompt = (tokenData.questions as any)?.prompt ?? "A story prompt";
 
   return (
     <main
