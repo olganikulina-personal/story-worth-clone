@@ -31,6 +31,7 @@ export default function EntryForm({
 
       if (res.ok) {
         setLocalSaved(true);
+        setStatus("idle");
       } else {
         setStatus("error");
       }

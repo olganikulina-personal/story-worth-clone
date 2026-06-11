@@ -75,8 +75,7 @@ export async function POST(request: Request) {
         const { error: updateError } = await supabase
             .from('stories')
             .update({ content })
-            .eq('question_id', tokenData.question_id)
-            .limit(1);
+            .eq('question_id', tokenData.question_id);
 
         if (updateError) return NextResponse.json({ error: 'Failed to update story' }, { status: 500 });
     }
