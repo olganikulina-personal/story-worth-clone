@@ -41,13 +41,22 @@ export default async function WritePage({
   // 1. Fetch current token/question
   const { data: tokenData, error: tokenError } = await supabase
     .from("access_tokens")
-    .select("token, is_used, question_id, questions(prompt)")
+    .select("token, is_used, question_id, created_at, questions(prompt)")
     .eq("token", token)
     .single();
 
   if (tokenError || !tokenData) return <div className="p-10">Link Invalid</div>;
 
-  // 2. Fetch only THIS specific story if it's already been answered
+  // 2. Check if a newer token exists (means this story is locked)
+  const { count } = await supabase
+    .from("access_tokens")
+    .select("*", { count: "exact", head: true })
+    .eq("question_id", tokenData.question_id)
+    .gt("created_at", tokenData.created_at);
+
+  const isLocked = (count ?? 0) > 0;
+
+  // 3. Fetch existing story content if one has been submitted
   let existingStory = "";
   if (tokenData.is_used) {
     const { data: storyData } = await supabase
@@ -62,25 +71,33 @@ export default async function WritePage({
   const prompt = (tokenData.questions as any)?.prompt;
 
   return (
-    /* min-h-screen and flex-col are key here */
-    <main className="max-w-2xl mx-auto h-screen flex flex-col p-6 bg-white text-black font-sans">
+    <main
+      className="max-w-2xl mx-auto h-screen flex flex-col p-6 font-sans"
+      style={{ backgroundColor: "#faf7f2", color: "#111" }}
+    >
       <nav className="mb-8">
         <a
           href="/"
-          className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-zinc-400"
+          className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest"
+          style={{ color: "#a08060" }}
         >
           ← View All Stories
         </a>
       </nav>
 
-      <h1 className="text-3xl font-serif mb-6 leading-tight">{prompt}</h1>
+      <div className="mb-2" style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "#a08060" }}>
+        {isLocked ? "Question from that week" : "This week's question"}
+      </div>
+      <h1 className="text-2xl font-serif mb-6 leading-tight font-semibold" style={{ color: "#111" }}>
+        {prompt}
+      </h1>
 
-      {/* Wrap the form in a flex-1 container to push it to fill space */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <EntryForm
           token={token}
           initialContent={existingStory}
-          readOnly={tokenData.is_used}
+          isSaved={tokenData.is_used}
+          isLocked={isLocked}
         />
       </div>
     </main>
