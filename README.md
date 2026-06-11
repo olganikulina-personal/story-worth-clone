@@ -8,7 +8,7 @@ Stories are editable until the following week's question arrives. The archive is
 
 ## How it works
 
-1. Every Monday at midnight, a cron job picks the next question from the database and emails a magic link to the configured addresses.
+1. Every Monday at midnight UTC (Sunday afternoon in PST), a cron job picks the next question from the database and emails a magic link to the configured address.
 2. The recipient clicks the link, writes their story, and hits "Send to the Family."
 3. The family receives an email notification and can browse all stories at the archive page.
 4. The story stays editable until the following Monday, when the next question locks it.
@@ -54,9 +54,13 @@ Go to **Project Settings → API**:
 
 1. Go to [resend.com](https://resend.com) and create a free account.
 2. From the dashboard, go to **API Keys → Create API Key**. Give it a name and copy the key — this is your `RESEND_API_KEY`.
-3. **To send from your own domain** (recommended before sharing with family): go to **Domains → Add Domain**, follow the DNS verification steps, then update the `from:` field in `app/api/stories/submit/route.ts` and `app/api/cron/send-prompt/route.ts` from `onboarding@resend.dev` to `yourname@yourdomain.com`.
+#### Resend free tier limitation
 
-> Without a verified domain, Resend will only deliver to the email address you signed up with (useful for testing, not for real use).
+The Resend free plan only allows sending to the **single email address you signed up with**. This means `FAMILY_EMAILS` must be set to just your own email — you can't send directly to other family members without upgrading or verifying a domain.
+
+A simple workaround: receive the weekly prompt email yourself, copy the magic link, and forward it to your family member over text or WhatsApp. This is how this app is used in practice — the family member gets the link via text, not email, and replies by text when they're done writing. You can then paste their story into the text box yourself if they're not comfortable with the web interface.
+
+If you verify a custom domain with Resend, you can send to any address and skip the manual forwarding step.
 
 ---
 
@@ -83,7 +87,7 @@ NEXT_PUBLIC_BASE_URL="https://your-app.vercel.app"
 
 # Comma-separated list of email addresses to notify when a story is submitted
 # and to receive the weekly prompt link
-FAMILY_EMAILS="you@example.com,mom@example.com"
+FAMILY_EMAILS="you@example.com"
 
 # Passcode to access the family archive page
 FAMILY_PASSCODE="choose-something-memorable"
@@ -143,11 +147,13 @@ After adding variables, trigger a redeploy: **Deployments → your latest deploy
 
 #### Weekly cron
 
-The cron job is configured in `vercel.json` to run every Monday at midnight UTC:
+The cron job is configured in `vercel.json` to run every Monday at midnight UTC — which is Sunday evening/afternoon in US time zones (5pm PST / 8pm EST). If you want it to arrive Monday morning in your local time, adjust the schedule accordingly:
 
 ```json
 { "path": "/api/cron/send-prompt", "schedule": "0 0 * * 1" }
 ```
+
+For Monday at 9am PST (UTC-8), use `"0 17 * * 1"` (17:00 UTC Monday = 9am PST).
 
 Vercel runs this automatically on Pro plans. On the free Hobby plan, Vercel supports one cron job — this project uses exactly one, so it works on the free tier.
 
