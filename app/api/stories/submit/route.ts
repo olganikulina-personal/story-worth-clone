@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     // 1. Fetch token row
     const { data: tokenData, error: tokenError } = await supabase
         .from('access_tokens')
-        .select('question_id, is_used, expires_at, created_at')
+        .select('question_id, is_used, expires_at')
         .eq('token', token)
         .single();
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
         .from('access_tokens')
         .select('*', { count: 'exact', head: true })
         .eq('question_id', tokenData.question_id)
-        .gt('created_at', tokenData.created_at);
+        .gt('expires_at', tokenData.expires_at);
 
     const isLocked = (count ?? 0) > 0;
 

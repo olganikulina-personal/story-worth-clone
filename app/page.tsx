@@ -21,8 +21,8 @@ export default async function Home() {
   // Fetch the most recent access token to determine banner state
   const { data: latestToken, error: tokenError } = await supabase
     .from("access_tokens")
-    .select("created_at, is_used, questions(prompt)")
-    .order("created_at", { ascending: false })
+    .select("expires_at, is_used, questions(prompt)")
+    .order("expires_at", { ascending: false })
     .limit(1)
     .single();
 

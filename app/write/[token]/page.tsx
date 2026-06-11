@@ -41,7 +41,7 @@ export default async function WritePage({
   // 1. Fetch current token/question
   const { data: tokenData, error: tokenError } = await supabase
     .from("access_tokens")
-    .select("token, is_used, question_id, created_at, questions(prompt)")
+    .select("token, is_used, question_id, expires_at, questions(prompt)")
     .eq("token", token)
     .single();
 
@@ -52,7 +52,7 @@ export default async function WritePage({
     .from("access_tokens")
     .select("*", { count: "exact", head: true })
     .eq("question_id", tokenData.question_id)
-    .gt("created_at", tokenData.created_at);
+    .gt("expires_at", tokenData.expires_at);
 
   const isLocked = (count ?? 0) > 0;
 
