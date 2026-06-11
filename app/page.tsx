@@ -21,7 +21,7 @@ export default async function Home() {
   // Fetch the most recent access token to determine banner state
   const { data: latestToken, error: tokenError } = await supabase
     .from("access_tokens")
-    .select("expires_at, is_used, questions(prompt)")
+    .select("token, expires_at, is_used, questions(prompt)")
     .order("expires_at", { ascending: false })
     .limit(1)
     .single();
@@ -37,12 +37,13 @@ export default async function Home() {
     banner = {
       prompt: (latestToken.questions as any)?.prompt ?? "",
       storySaved: latestToken.is_used,
+      token: latestToken.token,
     };
   }
 
   return (
     <main
-      className="max-w-3xl mx-auto p-8 font-sans"
+      className="max-w-4xl mx-auto p-8 font-sans"
       style={{ backgroundColor: "#faf7f2", minHeight: "100vh" }}
     >
       <header className="mb-12 border-b pb-8" style={{ borderColor: "#e8dcc8" }}>

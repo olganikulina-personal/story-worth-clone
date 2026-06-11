@@ -72,7 +72,7 @@ export default async function WritePage({
 
   return (
     <main
-      className="max-w-2xl mx-auto h-screen flex flex-col p-6 font-sans"
+      className="max-w-3xl mx-auto h-screen flex flex-col p-6 font-sans"
       style={{ backgroundColor: "#faf7f2", color: "#111" }}
     >
       <nav className="mb-8">

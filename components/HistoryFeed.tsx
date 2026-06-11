@@ -1,6 +1,7 @@
 export type BannerData = {
   prompt: string;
   storySaved: boolean;
+  token: string;
 } | null;
 
 export default function HistoryFeed({
@@ -13,11 +14,13 @@ export default function HistoryFeed({
   return (
     <div>
       {banner && (
-        <div
-          className="rounded mb-10 p-5"
+        <a
+          href={`/write/${banner.token}`}
+          className="block rounded mb-10 p-5 transition-opacity hover:opacity-80"
           style={{
             border: "2px solid #a0845c",
             background: "#f5ede0",
+            textDecoration: "none",
           }}
         >
           <div
@@ -41,7 +44,7 @@ export default function HistoryFeed({
               ? "Story saved — editable until Monday"
               : "No story yet this week"}
           </div>
-        </div>
+        </a>
       )}
 
       <div className="space-y-10">
