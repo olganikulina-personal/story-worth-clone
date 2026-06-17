@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function EntryForm({
   token,
@@ -15,12 +15,175 @@ export default function EntryForm({
   const [content, setContent] = useState(initialContent);
   const [localSaved, setLocalSaved] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [draftError, setDraftError] = useState("");
+
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedContentRef = useRef(initialContent);
+  const pendingAutosaveContentRef = useRef<string | null>(null);
+  const autosavePromiseRef = useRef<Promise<void> | null>(null);
+  const latestInitialContentRef = useRef(initialContent);
 
   const showSavedState = (isSaved || localSaved) && !isLocked;
 
+  function clearDebounceTimer() {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+  }
+
+  function clearSavedMessageTimer() {
+    if (savedMessageTimeoutRef.current) {
+      clearTimeout(savedMessageTimeoutRef.current);
+      savedMessageTimeoutRef.current = null;
+    }
+  }
+
+  function showDraftSavedMessage() {
+    clearSavedMessageTimer();
+    setDraftStatus("saved");
+    savedMessageTimeoutRef.current = setTimeout(() => {
+      setDraftStatus((current) => (current === "saved" ? "idle" : current));
+      savedMessageTimeoutRef.current = null;
+    }, 1500);
+  }
+
+  async function saveDraft(contentToSave: string) {
+    const trimmedContent = contentToSave.trim();
+
+    if (!trimmedContent || contentToSave === lastSavedContentRef.current) {
+      return;
+    }
+
+    setDraftStatus("saving");
+    setDraftError("");
+
+    try {
+      const res = await fetch("/api/stories/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, content: contentToSave }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setDraftStatus("error");
+        setDraftError(body?.error || "Draft save failed.");
+        return;
+      }
+
+      lastSavedContentRef.current = contentToSave;
+
+      if (pendingAutosaveContentRef.current && pendingAutosaveContentRef.current !== contentToSave) {
+        return;
+      }
+
+      showDraftSavedMessage();
+    } catch {
+      setDraftStatus("error");
+      setDraftError("Draft save failed.");
+    }
+  }
+
+  async function flushAutosaveQueue() {
+    if (autosavePromiseRef.current) {
+      return autosavePromiseRef.current;
+    }
+
+    const run = async () => {
+      while (pendingAutosaveContentRef.current) {
+        if (status === "submitting") {
+          return;
+        }
+
+        const nextContent = pendingAutosaveContentRef.current;
+        pendingAutosaveContentRef.current = null;
+
+        if (!nextContent.trim() || nextContent === lastSavedContentRef.current) {
+          continue;
+        }
+
+        await saveDraft(nextContent);
+      }
+    };
+
+    autosavePromiseRef.current = run().finally(() => {
+      autosavePromiseRef.current = null;
+    });
+
+    return autosavePromiseRef.current;
+  }
+
+  useEffect(() => {
+    if (initialContent === latestInitialContentRef.current) {
+      return;
+    }
+
+    latestInitialContentRef.current = initialContent;
+    lastSavedContentRef.current = initialContent;
+    pendingAutosaveContentRef.current = null;
+    clearDebounceTimer();
+    clearSavedMessageTimer();
+    setContent(initialContent);
+    setDraftStatus("idle");
+    setDraftError("");
+  }, [initialContent]);
+
+  useEffect(() => {
+    if (isLocked) {
+      clearDebounceTimer();
+      return;
+    }
+
+    if (status === "submitting") {
+      clearDebounceTimer();
+      return;
+    }
+
+    if (draftStatus === "saved" && content !== lastSavedContentRef.current) {
+      clearSavedMessageTimer();
+      setDraftStatus("idle");
+    }
+
+    if (!content.trim() || content === lastSavedContentRef.current) {
+      clearDebounceTimer();
+      return;
+    }
+
+    clearDebounceTimer();
+    debounceTimeoutRef.current = setTimeout(() => {
+      pendingAutosaveContentRef.current = content;
+
+      if (!autosavePromiseRef.current) {
+        void flushAutosaveQueue();
+      }
+    }, 1000);
+
+    return () => {
+      clearDebounceTimer();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, draftStatus, isLocked, status]);
+
+  useEffect(() => {
+    return () => {
+      clearDebounceTimer();
+      clearSavedMessageTimer();
+    };
+  }, []);
+
   async function handleSubmit() {
     if (!content.trim()) return;
+    clearDebounceTimer();
+    clearSavedMessageTimer();
+    pendingAutosaveContentRef.current = content;
     setStatus("submitting");
+
+    if (autosavePromiseRef.current) {
+      await autosavePromiseRef.current;
+    }
 
     try {
       const res = await fetch("/api/stories/submit", {
@@ -30,13 +193,25 @@ export default function EntryForm({
       });
 
       if (res.ok) {
+        lastSavedContentRef.current = content;
         setLocalSaved(true);
+        pendingAutosaveContentRef.current = null;
+        setDraftStatus("idle");
+        setDraftError("");
         setStatus("idle");
       } else {
+        pendingAutosaveContentRef.current = content;
         setStatus("error");
+        if (!autosavePromiseRef.current) {
+          void flushAutosaveQueue();
+        }
       }
-    } catch (e) {
+    } catch {
+      pendingAutosaveContentRef.current = content;
       setStatus("error");
+      if (!autosavePromiseRef.current) {
+        void flushAutosaveQueue();
+      }
     }
   }
 
@@ -48,7 +223,9 @@ export default function EntryForm({
           {content || "No story was submitted for this period."}
         </p>
         <p style={{ fontSize: "0.75rem", color: "#a08060" }}>
-          This story is locked and saved to the family archive.
+          {showSavedState
+            ? "This story is locked and saved to the family archive."
+            : "This draft is locked because a new weekly question has been sent."}
         </p>
       </div>
     );
@@ -66,12 +243,31 @@ export default function EntryForm({
         }}
         value={content}
         onChange={(e) => setContent(e.target.value)}
+        disabled={status === "submitting"}
         placeholder="Type your story here..."
       />
 
       {showSavedState && (
         <p style={{ fontSize: "0.75rem", color: "#7c5c35" }}>
           ✓ Saved — you can keep editing until Monday
+        </p>
+      )}
+
+      {draftStatus === "saving" && (
+        <p style={{ fontSize: "0.75rem", color: "#7c5c35" }}>
+          Saving draft...
+        </p>
+      )}
+
+      {draftStatus === "saved" && (
+        <p style={{ fontSize: "0.75rem", color: "#7c5c35" }}>
+          Draft saved
+        </p>
+      )}
+
+      {draftStatus === "error" && draftError && (
+        <p className="text-red-600 font-bold">
+          {draftError}
         </p>
       )}
 

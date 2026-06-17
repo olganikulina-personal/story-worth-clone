@@ -13,9 +13,20 @@ export default async function Home() {
   }
 
   // Fetch all answered stories, newest first
+  const { data: submittedTokens } = await supabase
+    .from("access_tokens")
+    .select("question_id")
+    .eq("is_used", true);
+
+  const submittedQuestionIds =
+    submittedTokens?.flatMap((token) =>
+      typeof token.question_id === "number" ? [token.question_id] : []
+    ) ?? [];
+
   const { data: history } = await supabase
     .from("stories")
     .select(`content, created_at, questions ( prompt )`)
+    .in("question_id", submittedQuestionIds.length > 0 ? submittedQuestionIds : [-1])
     .order("created_at", { ascending: false });
 
   // Fetch the most recent access token to determine banner state

@@ -21,9 +21,11 @@ CREATE TABLE public.access_tokens (
 
 CREATE TABLE public.stories (
   id integer NOT NULL DEFAULT nextval('stories_id_seq'::regclass),
-  question_id integer,
+  question_id integer NOT NULL,
   content text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT stories_pkey PRIMARY KEY (id),
+  CONSTRAINT stories_question_id_key UNIQUE (question_id),
   CONSTRAINT stories_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id)
 );

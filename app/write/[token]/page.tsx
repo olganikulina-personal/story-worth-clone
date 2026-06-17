@@ -1,6 +1,17 @@
 import { supabase } from "@/lib/supabase";
 import EntryForm from "@/components/EntryForm";
 import { Metadata } from "next";
+import Link from "next/link";
+
+type QuestionRelation = { prompt?: string | null } | Array<{ prompt?: string | null }> | null;
+
+function getPrompt(questionRelation: QuestionRelation, fallback: string) {
+  if (Array.isArray(questionRelation)) {
+    return questionRelation[0]?.prompt || fallback;
+  }
+
+  return questionRelation?.prompt || fallback;
+}
 
 export async function generateMetadata({
   params,
@@ -15,7 +26,7 @@ export async function generateMetadata({
     .eq("token", token)
     .single();
 
-  const prompt = (data?.questions as any)?.prompt || "A new story prompt";
+  const prompt = getPrompt(data?.questions as QuestionRelation, "A new story prompt");
 
   return {
     title: `Babushka's Family Archive: ${prompt}`,
@@ -56,19 +67,16 @@ export default async function WritePage({
 
   const isLocked = (count ?? 0) > 0;
 
-  // 3. Fetch existing story content if one has been submitted
-  let existingStory = "";
-  if (tokenData.is_used) {
-    const { data: storyData } = await supabase
-      .from("stories")
-      .select("content")
-      .eq("question_id", tokenData.question_id)
-      .single();
+  // 3. Fetch any existing story content for this question
+  const { data: storyData } = await supabase
+    .from("stories")
+    .select("content")
+    .eq("question_id", tokenData.question_id)
+    .single();
 
-    if (storyData) existingStory = storyData.content;
-  }
+  const existingStory = storyData?.content ?? "";
 
-  const prompt = (tokenData.questions as any)?.prompt ?? "A story prompt";
+  const prompt = getPrompt(tokenData.questions as QuestionRelation, "A story prompt");
 
   return (
     <main
@@ -76,13 +84,13 @@ export default async function WritePage({
       style={{ backgroundColor: "#faf7f2", color: "#111" }}
     >
       <nav className="mb-8">
-        <a
+        <Link
           href="/"
           className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest"
           style={{ color: "#a08060" }}
         >
           ← View All Stories
-        </a>
+        </Link>
       </nav>
 
       <div className="mb-2" style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "#a08060" }}>

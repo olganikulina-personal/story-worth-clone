@@ -5,6 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
     const { token, content } = await request.json();
+    const updatedAt = new Date().toISOString();
 
     // 1. Fetch token row
     const { data: tokenData, error: tokenError } = await supabase
@@ -36,10 +37,10 @@ export async function POST(request: Request) {
     }
 
     if (!tokenData.is_used) {
-        // 4a. First submit: insert story, mark token used, send email
+        // 4a. First submit: save story, mark token used, send email
         const { error: storyError } = await supabase
             .from('stories')
-            .insert([{ question_id: tokenData.question_id, content }]);
+            .upsert([{ question_id: tokenData.question_id, content, updated_at: updatedAt }], { onConflict: 'question_id' });
 
         if (storyError) return NextResponse.json({ error: 'Failed to save story' }, { status: 500 });
 
@@ -50,8 +51,7 @@ export async function POST(request: Request) {
 
         if (markUsedError) {
             console.error('Failed to mark token as used:', markUsedError);
-            // Story was inserted; proceed — the insert succeeded.
-            // Caller will still receive success; duplicate-submit risk is low.
+            return NextResponse.json({ error: 'Failed to mark story as submitted' }, { status: 500 });
         }
 
         const familyEmails = process.env.FAMILY_EMAILS?.split(',') || [];
@@ -71,11 +71,10 @@ export async function POST(request: Request) {
               `
         });
     } else {
-        // 4b. Edit: update existing story content, no email
+        // 4b. Edit: save updated story content, no email
         const { error: updateError } = await supabase
             .from('stories')
-            .update({ content })
-            .eq('question_id', tokenData.question_id);
+            .upsert([{ question_id: tokenData.question_id, content, updated_at: updatedAt }], { onConflict: 'question_id' });
 
         if (updateError) return NextResponse.json({ error: 'Failed to update story' }, { status: 500 });
     }

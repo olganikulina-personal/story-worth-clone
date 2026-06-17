@@ -79,8 +79,11 @@ Add a lightweight autosave status message near the form with these states:
 Autosave behavior:
 
 - Trigger on textarea changes after a debounce window.
+- Use a `1000ms` debounce after the last keystroke as the default autosave cadence.
 - Only save non-empty trimmed content.
 - Avoid firing redundant saves when the content has not changed since the last successful save.
+- Do not allow overlapping autosave requests; if a save is already in flight, send the latest pending content after it completes.
+- Force an immediate save during explicit submit instead of waiting for the debounce timer.
 - Do not show persistent success UI once the short confirmation window has passed.
 
 The explicit submit button remains visible before and after first submit to avoid confusing UI changes.
@@ -168,6 +171,7 @@ Once a new prompt exists, the previous week's draft or story is effectively forg
 
 Add or update tests to cover:
 
+- New unit tests for the draft-save route and submit route behavior.
 - Draft save creates a `stories` row before first submit.
 - Draft save updates an existing row without flipping `is_used`.
 - Write page loads existing story content even when `is_used = false`.
@@ -176,12 +180,18 @@ Add or update tests to cover:
 - Locked and invalid-token cases are rejected by both draft save and submit.
 - Submit persists the latest content even if an autosave is still in flight.
 
+Verification requirement:
+
+- The existing unit test suite must continue to pass after the autosave change.
+- Any new or updated unit tests for autosave and submit behavior must pass locally before the work is considered complete.
+
 ## Implementation Notes
 
 - The current write page logic that only fetches `stories.content` when `is_used = true` must change.
 - The current submit route should stop inserting-only on first submit and instead use an upsert-compatible pattern.
 - Shared token validation and lock-check logic should be factored so draft and submit routes cannot drift.
 - The autosave UI should be small and transient, not a new workflow surface.
+- The implementation should not be considered done unless the relevant unit tests are added or updated and the existing test suite still passes.
 
 ## Open Decisions Resolved
 
