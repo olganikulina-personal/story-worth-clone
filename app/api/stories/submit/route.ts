@@ -1,3 +1,4 @@
+import { saveStoryContent } from '@/lib/storyPersistence';
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
@@ -5,7 +6,6 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
     const { token, content } = await request.json();
-    const updatedAt = new Date().toISOString();
 
     // 1. Fetch token row
     const { data: tokenData, error: tokenError } = await supabase
@@ -38,9 +38,7 @@ export async function POST(request: Request) {
 
     if (!tokenData.is_used) {
         // 4a. First submit: save story, mark token used, send email
-        const { error: storyError } = await supabase
-            .from('stories')
-            .upsert([{ question_id: tokenData.question_id, content, updated_at: updatedAt }], { onConflict: 'question_id' });
+        const { error: storyError } = await saveStoryContent(tokenData.question_id, content);
 
         if (storyError) return NextResponse.json({ error: 'Failed to save story' }, { status: 500 });
 
@@ -72,9 +70,7 @@ export async function POST(request: Request) {
         });
     } else {
         // 4b. Edit: save updated story content, no email
-        const { error: updateError } = await supabase
-            .from('stories')
-            .upsert([{ question_id: tokenData.question_id, content, updated_at: updatedAt }], { onConflict: 'question_id' });
+        const { error: updateError } = await saveStoryContent(tokenData.question_id, content);
 
         if (updateError) return NextResponse.json({ error: 'Failed to update story' }, { status: 500 });
     }

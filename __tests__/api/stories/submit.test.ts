@@ -288,4 +288,42 @@ describe('POST /api/stories/submit', () => {
     expect(firstArg).toBe('expires_at')
     expect(firstArg).not.toBe('created_at')
   })
+
+  it('falls back to legacy insert/update persistence when the deployed stories schema has not been migrated yet', async () => {
+    const tokenLookup = singleChain({
+      data: { question_id: 1, is_used: false, expires_at: FUTURE },
+      error: null,
+    })
+    const lockCheck = resolvingChain({ count: 0, error: null })
+    const storyUpsert = resolvingChain({
+      error: {
+        code: '42P10',
+        message: 'there is no unique or exclusion constraint matching the ON CONFLICT specification',
+      },
+    })
+    const existingStoryLookup = resolvingChain({ data: [], error: null })
+    const storyInsert = resolvingChain({ error: null })
+    const markUsed = resolvingChain({ error: null })
+
+    fromMock
+      .mockReturnValueOnce(tokenLookup)
+      .mockReturnValueOnce(lockCheck)
+      .mockReturnValueOnce(storyUpsert)
+      .mockReturnValueOnce(existingStoryLookup)
+      .mockReturnValueOnce(storyInsert)
+      .mockReturnValueOnce(markUsed)
+
+    const res = await POST(makeRequest())
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body).toEqual({ success: true })
+    expect((storyInsert as Record<string, ReturnType<typeof vi.fn>>).insert).toHaveBeenCalledWith([
+      { question_id: 1, content: 'My story' },
+    ])
+    expect((markUsed as Record<string, ReturnType<typeof vi.fn>>).update).toHaveBeenCalledWith({
+      is_used: true,
+    })
+    expect(mockSend).toHaveBeenCalledTimes(1)
+  })
 })

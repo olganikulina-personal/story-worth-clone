@@ -1,9 +1,9 @@
+import { saveStoryContent } from '@/lib/storyPersistence';
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
     const { token, content } = await request.json();
-    const updatedAt = new Date().toISOString();
 
     const { data: tokenData, error: tokenError } = await supabase
         .from('access_tokens')
@@ -31,12 +31,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid or expired link' }, { status: 403 });
     }
 
-    const { error: storyError } = await supabase
-        .from('stories')
-        .upsert([{ question_id: tokenData.question_id, content, updated_at: updatedAt }], { onConflict: 'question_id' });
+    const { error: storyError } = await saveStoryContent(tokenData.question_id, content);
 
     if (storyError) {
-        return NextResponse.json({ error: 'Failed to save story' }, { status: 500 });
+        console.error('Failed to save draft:', storyError);
+        return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

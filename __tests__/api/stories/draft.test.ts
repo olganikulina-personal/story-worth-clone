@@ -177,6 +177,39 @@ describe('POST /api/stories/draft', () => {
     expect(body).toEqual({ error: 'Invalid or expired link' })
   })
 
+  it('falls back to insert/update behavior when the deployed stories schema is still on the old shape', async () => {
+    const tokenLookup = singleChain({
+      data: { question_id: 1, is_used: false, expires_at: FUTURE },
+      error: null,
+    })
+    const lockCheck = resolvingChain({ count: 0, error: null })
+    const storyUpsert = resolvingChain({
+      error: {
+        code: '42P10',
+        message: 'there is no unique or exclusion constraint matching the ON CONFLICT specification',
+      },
+    })
+    const existingStoryLookup = resolvingChain({ data: [], error: null })
+    const storyInsert = resolvingChain({ error: null })
+
+    fromMock
+      .mockReturnValueOnce(tokenLookup)
+      .mockReturnValueOnce(lockCheck)
+      .mockReturnValueOnce(storyUpsert)
+      .mockReturnValueOnce(existingStoryLookup)
+      .mockReturnValueOnce(storyInsert)
+
+    const res = await POST(makeRequest())
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body).toEqual({ success: true })
+    expect((storyInsert as Record<string, ReturnType<typeof vi.fn>>).insert).toHaveBeenCalledWith([
+      { question_id: 1, content: 'My draft' },
+    ])
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
   it('uses expires_at (not created_at) for the lock check on access_tokens', async () => {
     const tokenLookup = singleChain({
       data: { question_id: 1, is_used: false, expires_at: FUTURE },
