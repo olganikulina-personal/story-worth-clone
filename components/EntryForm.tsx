@@ -9,6 +9,10 @@ export function shouldSkipAutosaveTransition(contentToSave: string, lastSavedCon
   return !contentToSave.trim() && !lastSavedContent.trim();
 }
 
+export function hasPendingAutosaveContent(content: string | null) {
+  return content !== null;
+}
+
 export default function EntryForm({
   token,
   initialContent = "",
@@ -86,7 +90,10 @@ export default function EntryForm({
 
       lastSavedContentRef.current = contentToSave;
 
-      if (pendingAutosaveContentRef.current && pendingAutosaveContentRef.current !== contentToSave) {
+      if (
+        hasPendingAutosaveContent(pendingAutosaveContentRef.current)
+        && pendingAutosaveContentRef.current !== contentToSave
+      ) {
         return;
       }
 
@@ -103,7 +110,7 @@ export default function EntryForm({
     }
 
     const run = async () => {
-      while (pendingAutosaveContentRef.current) {
+      while (hasPendingAutosaveContent(pendingAutosaveContentRef.current)) {
         if (status === "submitting") {
           return;
         }
