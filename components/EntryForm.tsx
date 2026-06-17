@@ -1,6 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
+export function shouldSkipAutosaveTransition(contentToSave: string, lastSavedContent: string) {
+  if (contentToSave === lastSavedContent) {
+    return true;
+  }
+
+  return !contentToSave.trim() && !lastSavedContent.trim();
+}
+
 export default function EntryForm({
   token,
   initialContent = "",
@@ -50,10 +58,12 @@ export default function EntryForm({
     }, 1500);
   }
 
-  async function saveDraft(contentToSave: string) {
-    const trimmedContent = contentToSave.trim();
+  function shouldSkipAutosave(contentToSave: string) {
+    return shouldSkipAutosaveTransition(contentToSave, lastSavedContentRef.current);
+  }
 
-    if (!trimmedContent || contentToSave === lastSavedContentRef.current) {
+  async function saveDraft(contentToSave: string) {
+    if (shouldSkipAutosave(contentToSave)) {
       return;
     }
 
@@ -101,7 +111,7 @@ export default function EntryForm({
         const nextContent = pendingAutosaveContentRef.current;
         pendingAutosaveContentRef.current = null;
 
-        if (!nextContent.trim() || nextContent === lastSavedContentRef.current) {
+        if (shouldSkipAutosave(nextContent)) {
           continue;
         }
 
@@ -147,7 +157,7 @@ export default function EntryForm({
       setDraftStatus("idle");
     }
 
-    if (!content.trim() || content === lastSavedContentRef.current) {
+    if (shouldSkipAutosave(content)) {
       clearDebounceTimer();
       return;
     }
