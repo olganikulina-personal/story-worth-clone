@@ -29,3 +29,18 @@ CREATE TABLE public.stories (
   CONSTRAINT stories_question_id_key UNIQUE (question_id),
   CONSTRAINT stories_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id)
 );
+
+CREATE TABLE public.audit_events (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  event_type text NOT NULL,
+  status text NOT NULL,
+  route text NOT NULL,
+  job_key text,
+  question_id integer,
+  token uuid,
+  message text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT audit_events_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id),
+  CONSTRAINT audit_events_status_check CHECK (status IN ('success', 'error'))
+);

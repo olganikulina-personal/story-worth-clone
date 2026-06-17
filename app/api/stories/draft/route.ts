@@ -1,8 +1,10 @@
 import { saveStoryContent } from '@/lib/storyPersistence';
+import { recordAuditEvent } from '@/lib/audit';
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
+    const route = '/api/stories/draft';
     const { token, content } = await request.json();
 
     const { data: tokenData, error: tokenError } = await supabase
@@ -35,8 +37,26 @@ export async function POST(request: Request) {
 
     if (storyError) {
         console.error('Failed to save draft:', storyError);
+        await recordAuditEvent({
+            event_type: 'story_saved',
+            status: 'error',
+            route,
+            question_id: tokenData.question_id,
+            token,
+            message: storyError.message ?? 'Failed to save draft',
+            metadata: { mode: 'draft' },
+        });
         return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 });
     }
+
+    await recordAuditEvent({
+        event_type: 'story_saved',
+        status: 'success',
+        route,
+        question_id: tokenData.question_id,
+        token,
+        metadata: { mode: 'draft' },
+    });
 
     return NextResponse.json({ success: true });
 }

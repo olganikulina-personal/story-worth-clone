@@ -89,6 +89,10 @@ NEXT_PUBLIC_BASE_URL="https://your-app.vercel.app"
 # and to receive the weekly prompt link
 FAMILY_EMAILS="you@example.com"
 
+# Optional explicit recipient for watchdog/admin alerts
+# If omitted, the app falls back to the first address in FAMILY_EMAILS
+ADMIN_ALERT_EMAIL="you@example.com"
+
 # Passcode to access the family archive page
 FAMILY_PASSCODE="choose-something-memorable"
 
@@ -121,6 +125,12 @@ To test the cron locally:
 curl -H "Authorization: Bearer your-cron-secret" http://localhost:3000/api/cron/send-prompt
 ```
 
+To test the watchdog locally:
+
+```bash
+curl -H "Authorization: Bearer your-cron-secret" http://localhost:3000/api/cron/watchdog
+```
+
 ---
 
 ### 6. Deploy to Vercel
@@ -140,6 +150,7 @@ In your Vercel project, go to **Settings → Environment Variables** and add eac
 | `RESEND_API_KEY` | Production, Preview, Development |
 | `NEXT_PUBLIC_BASE_URL` | Production only (set to your `*.vercel.app` URL) |
 | `FAMILY_EMAILS` | Production, Preview, Development |
+| `ADMIN_ALERT_EMAIL` | Production, Preview, Development |
 | `FAMILY_PASSCODE` | Production, Preview, Development |
 | `CRON_SECRET` | Production, Preview, Development |
 
@@ -155,7 +166,15 @@ The cron job is configured in `vercel.json` to run every Monday at midnight UTC 
 
 For Monday at 9am PST (UTC-8), use `"0 17 * * 1"` (17:00 UTC Monday = 9am PST).
 
-Vercel runs this automatically on Pro plans. On the free Hobby plan, Vercel supports one cron job — this project uses exactly one, so it works on the free tier.
+#### Daily watchdog cron
+
+The watchdog cron checks `audit_events` once per day and sends an admin email if the weekly prompt flow has not completed successfully within the last 8 days:
+
+```json
+{ "path": "/api/cron/watchdog", "schedule": "0 12 * * *" }
+```
+
+As of June 17, 2026, Vercel Hobby cron jobs are allowed as long as each configured cron runs no more than once per day, so the weekly prompt plus one daily watchdog fits that limit. Timing on Hobby can still vary within the scheduled hour.
 
 Vercel authenticates the cron by sending `Authorization: Bearer <CRON_SECRET>` with each request. Make sure `CRON_SECRET` is set in your Vercel environment variables.
 
@@ -180,6 +199,7 @@ app/
   api/
     stories/submit/route.ts   # POST: submit or edit a story
     cron/send-prompt/route.ts # GET: weekly cron — sends next question
+    cron/watchdog/route.ts    # GET: daily watchdog — alerts on missing weekly completion
 components/
   EntryForm.tsx               # Story textarea with three states
   HistoryFeed.tsx             # Archive story list + in-progress banner
@@ -202,5 +222,6 @@ __tests__/
 | `RESEND_API_KEY` | Resend API key for sending emails |
 | `NEXT_PUBLIC_BASE_URL` | Public URL of the deployed app (no trailing slash) |
 | `FAMILY_EMAILS` | Comma-separated email addresses for notifications and prompts |
+| `ADMIN_ALERT_EMAIL` | Optional explicit admin alert recipient; falls back to the first FAMILY_EMAILS address |
 | `FAMILY_PASSCODE` | Passcode to access the family archive |
 | `CRON_SECRET` | Secret for authenticating the weekly cron endpoint |

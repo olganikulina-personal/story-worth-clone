@@ -15,8 +15,13 @@ vi.mock('resend', () => {
   return { Resend: MockResend, mockSend }
 })
 
+vi.mock('@/lib/audit', () => ({
+  recordAuditEvent: vi.fn().mockResolvedValue(undefined),
+}))
+
 import { supabase } from '@/lib/supabase'
 import { POST } from '@/app/api/stories/submit/route'
+import { recordAuditEvent } from '@/lib/audit'
 import { mockSend } from 'resend'
 
 // --- Mock chain helpers ---
@@ -111,6 +116,15 @@ describe('POST /api/stories/submit', () => {
     expect((markUsed as Record<string, ReturnType<typeof vi.fn>>).update).toHaveBeenCalledWith({
       is_used: true,
     })
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_type: 'story_saved',
+        status: 'success',
+        route: '/api/stories/submit',
+        question_id: 1,
+        token: 'test-token',
+      }),
+    )
     expect(mockSend).toHaveBeenCalledTimes(1)
   })
 
@@ -138,6 +152,14 @@ describe('POST /api/stories/submit', () => {
     expect((storyUpsert as Record<string, ReturnType<typeof vi.fn>>).upsert).toHaveBeenCalledWith(
       [expect.objectContaining({ question_id: 1, content: submitContent, updated_at: expect.any(String) })],
       { onConflict: 'question_id' },
+    )
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_type: 'story_saved',
+        status: 'success',
+        question_id: 1,
+        token: 'test-token',
+      }),
     )
   })
 
@@ -172,6 +194,15 @@ describe('POST /api/stories/submit', () => {
     expect(fromTargets()).toEqual(['access_tokens', 'access_tokens', 'stories'])
     expect((tokenLookup as Record<string, ReturnType<typeof vi.fn>>).update).not.toHaveBeenCalled()
     expect((lockCheck as Record<string, ReturnType<typeof vi.fn>>).update).not.toHaveBeenCalled()
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event_type: 'story_saved',
+        status: 'success',
+        route: '/api/stories/submit',
+        question_id: 1,
+        token: 'test-token',
+      }),
+    )
     expect(mockSend).not.toHaveBeenCalled()
   })
 
